@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">FIDO2</string>
+    <string name="action_settings">Settings</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">FIDO2 Demo</string>
+    <string name="sign_in">Sign In</string>
+    <string name="sign_out">Sign Out</string>
+</resources>
