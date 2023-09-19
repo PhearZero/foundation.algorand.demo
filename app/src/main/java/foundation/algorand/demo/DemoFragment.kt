@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import foundation.algorand.demo.GATT.GattServerActivity
 import foundation.algorand.demo.databinding.FragmentFirstBinding
+import foundation.algorand.demo.u2f.FIDO2Activity
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -35,6 +36,9 @@ class DemoFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.buttonGattTimeService.setOnClickListener {
             startActivity(Intent(activity, GattServerActivity::class.java))
+        }
+        binding.buttonGattU2fService.setOnClickListener {
+            startActivity(Intent(activity, FIDO2Activity::class.java))
         }
         binding.buttonSignIn.setOnClickListener {
             Toast.makeText(activity, "Not Configured", Toast.LENGTH_SHORT).show()

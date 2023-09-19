@@ -32,6 +32,14 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+            <Button
+                android:id="@+id/button_gatt_u2f_service"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/gatt_u2f_server"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
         </androidx.appcompat.widget.LinearLayoutCompat>
     </androidx.constraintlayout.widget.ConstraintLayout>
 <!--    <androidx.constraintlayout.widget.ConstraintLayout-->

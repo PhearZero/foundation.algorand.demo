@@ -1,9 +1,16 @@
 <resources>
     <string name="app_name">FIDO2</string>
     <string name="action_settings">Settings</string>
-    <!-- Strings used for fragments for navigation -->
+
     <string name="first_fragment_label">FIDO2 Demo</string>
     <string name="sign_in">Sign In</string>
     <string name="sign_out">Sign Out</string>
     <string name="gatt_time_server">GATT Time Server</string>
+    <string name="gatt_u2f_server">GATT U2F Server</string>
+
+    <string name="requires_bl_enabled">This app requires bluetooth enabled.</string>
+    <string name="ble_perip_not_supported">Bluetooth LE Peripheral is not supported on this device. The app will exit.</string>
+    <string name="not_supported">Not supported</string>
+    <string name="ok">OK</string>
+    <string name="token_is_enabled">FIDO2 token is now enabled</string>
 </resources>

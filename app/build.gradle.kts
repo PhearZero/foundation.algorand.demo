@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "foundation.algorand.demo"
-        minSdk = 24
+        minSdk = 28
         targetSdk = 33
         versionCode = 1
         versionName = "1.0"
@@ -39,7 +39,10 @@ android {
 }
 
 dependencies {
-
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.15.2")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
+    implementation("com.google.guava:guava:32.1.2-android")
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.9.0")
