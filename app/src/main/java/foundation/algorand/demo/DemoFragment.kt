@@ -1,10 +1,13 @@
 package foundation.algorand.demo
 
+import android.content.Intent
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import foundation.algorand.demo.GATT.GattServerActivity
 import foundation.algorand.demo.databinding.FragmentFirstBinding
 
 /**
@@ -30,8 +33,11 @@ class DemoFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        binding.buttonFirst.setOnClickListener {
+        binding.buttonGattTimeService.setOnClickListener {
+            startActivity(Intent(activity, GattServerActivity::class.java))
+        }
+        binding.buttonSignIn.setOnClickListener {
+            Toast.makeText(activity, "Not Configured", Toast.LENGTH_SHORT).show()
 //            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
         }
     }
