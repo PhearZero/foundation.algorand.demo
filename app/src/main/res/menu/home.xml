@@ -14,10 +14,17 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
 -->
-<resources>
-    <dimen name="spacing_small">8dp</dimen>
-    <dimen name="spacing_medium">16dp</dimen>
-    <dimen name="spacing_medium_large">24dp</dimen>
-    <dimen name="spacing_large">32dp</dimen>
-    <dimen name="dodge_app_bar">64dp</dimen>
-</resources>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_reauth"
+        android:title="@string/reauth"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_sign_out"
+        android:title="@string/sign_out"
+        app:showAsAction="ifRoom" />
+
+</menu>
