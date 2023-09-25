@@ -106,14 +106,15 @@ class AuthRepository @Inject constructor(
      * [SignInState.SigningIn].
      */
     suspend fun username(username: String) {
-        when (val result = api.username(username)) {
+        when (val result = api.createSession(username)) {
             ApiResult.SignedOutFromServer -> forceSignOut()
             is ApiResult.Success -> {
                 dataStore.edit { prefs ->
                     prefs[USERNAME] = username
                     prefs[SESSION_ID] = result.sessionId!!
                 }
-                signInStateMutable.emit(SignInState.SigningIn(username))
+                signInStateMutable.emit(SignInState.SignedIn(username))
+                refreshCredentials()
             }
         }
     }

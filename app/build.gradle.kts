@@ -18,12 +18,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-        buildConfigField("String", "API_BASE_URL", "\"https://chatter-remarkable-trout.glitch.me/auth\"")
-        resValue("string", "host", "https://chatter-remarkable-trout.glitch.me")
+        buildConfigField("String", "API_BASE_URL", "\"https://nest-fido2.vercel.app\"")
+        resValue("string", "host", "https://nest-fido2.vercel.app")
         resValue(
             "string", "asset_statements", """
            [{
-             "include": "https://chatter-remarkable-trout.glitch.me/.well-known/assetlinks.json"
+             "include": "https://nest-fido2.vercel.app/.well-known/assetlinks.json"
            }]
         """)
     }

@@ -18,6 +18,7 @@ package foundation.algorand.demo.ui.home
 
 import android.app.Activity
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -129,6 +130,7 @@ class HomeFragment : Fragment(), DeleteConfirmationFragment.Listener {
     }
 
     private fun handleCreateCredentialResult(activityResult: ActivityResult) {
+        Log.d("Handle CreateCredential", "Wow")
         val bytes = activityResult.data?.getByteArrayExtra(Fido.FIDO2_KEY_CREDENTIAL_EXTRA)
         when {
             activityResult.resultCode != Activity.RESULT_OK ->
@@ -137,6 +139,7 @@ class HomeFragment : Fragment(), DeleteConfirmationFragment.Listener {
                 Toast.makeText(requireContext(), R.string.credential_error, Toast.LENGTH_LONG)
                     .show()
             else -> {
+                Log.d("Handle CRED", bytes.toString())
                 val credential = PublicKeyCredential.deserializeFromBytes(bytes)
                 val response = credential.response
                 if (response is AuthenticatorErrorResponse) {

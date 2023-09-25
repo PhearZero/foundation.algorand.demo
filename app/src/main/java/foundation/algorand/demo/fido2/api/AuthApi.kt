@@ -20,9 +20,6 @@ import android.util.JsonReader
 import android.util.JsonToken
 import android.util.JsonWriter
 import android.util.Log
-import foundation.algorand.demo.BuildConfig
-import foundation.algorand.demo.fido2.decodeBase64
-import foundation.algorand.demo.fido2.toBase64
 import com.google.android.gms.fido.fido2.api.common.Attachment
 import com.google.android.gms.fido.fido2.api.common.AuthenticatorAssertionResponse
 import com.google.android.gms.fido.fido2.api.common.AuthenticatorAttestationResponse
@@ -35,6 +32,9 @@ import com.google.android.gms.fido.fido2.api.common.PublicKeyCredentialRequestOp
 import com.google.android.gms.fido.fido2.api.common.PublicKeyCredentialRpEntity
 import com.google.android.gms.fido.fido2.api.common.PublicKeyCredentialType
 import com.google.android.gms.fido.fido2.api.common.PublicKeyCredentialUserEntity
+import foundation.algorand.demo.BuildConfig
+import foundation.algorand.demo.fido2.decodeBase64
+import foundation.algorand.demo.fido2.toBase64
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -42,10 +42,13 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody
+import okio.Buffer
 import ru.gildor.coroutines.okhttp.await
+import java.io.IOException
 import java.io.StringReader
 import java.io.StringWriter
 import javax.inject.Inject
+
 
 /**
  * Interacts with the server API.
@@ -62,15 +65,15 @@ class AuthApi @Inject constructor(
     }
 
     /**
-     * @param username The username to be used for sign-in.
+     * @param wallet The wallet to be used for sign-in.
      * @return The Session ID.
      */
-    suspend fun username(username: String): ApiResult<Unit> {
+    suspend fun createSession(wallet: String): ApiResult<Unit> {
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/username")
+                .url("$BASE_URL/auth/session")
                 .method("POST", jsonRequestBody {
-                    name("username").value(username)
+                    name("wallet").value(wallet)
                 })
                 .build()
         )
@@ -102,11 +105,12 @@ class AuthApi @Inject constructor(
      * @return A list of all the credentials registered on the server.
      */
     suspend fun getKeys(sessionId: String): ApiResult<List<Credential>> {
+        Log.d("keys", "$BASE_URL/auth/keys")
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/getKeys")
+                .url("$BASE_URL/auth/keys")
                 .addHeader("Cookie", formatCookie(sessionId))
-                .method("POST", jsonRequestBody {})
+//                .method("GET", jsonRequestBody {})
                 .build()
         )
         val response = call.await()
@@ -122,9 +126,10 @@ class AuthApi @Inject constructor(
      * be sent back to the server in [registerResponse].
      */
     suspend fun registerRequest(sessionId: String): ApiResult<PublicKeyCredentialCreationOptions> {
+        Log.d("REGISTER", "$BASE_URL/attestation/request")
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/registerRequest")
+                .url("$BASE_URL/attestation/request")
                 .addHeader("Cookie", formatCookie(sessionId))
                 .method("POST", jsonRequestBody {
                     name("attestation").value("none")
@@ -158,7 +163,7 @@ class AuthApi @Inject constructor(
 
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/registerResponse")
+                .url("$BASE_URL/attestation/response")
                 .addHeader("Cookie", formatCookie(sessionId))
                 .method("POST", jsonRequestBody {
                     name("id").value(rawId)
@@ -190,9 +195,9 @@ class AuthApi @Inject constructor(
     suspend fun removeKey(sessionId: String, credentialId: String): ApiResult<Unit> {
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/removeKey?credId=$credentialId")
+                .url("$BASE_URL/auth/keys/$credentialId")
                 .addHeader("Cookie", formatCookie(sessionId))
-                .method("POST", jsonRequestBody {})
+                .method("DELETE", jsonRequestBody {})
                 .build()
         )
         val response = call.await()
@@ -214,7 +219,7 @@ class AuthApi @Inject constructor(
             Request.Builder()
                 .url(
                     buildString {
-                        append("$BASE_URL/signinRequest")
+                        append("$BASE_URL/assertion/request")
                         if (credentialId != null) {
                             append("?credId=$credentialId")
                         }
@@ -247,7 +252,7 @@ class AuthApi @Inject constructor(
 
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/signinResponse")
+                .url("$BASE_URL/assertion/response")
                 .addHeader("Cookie", formatCookie(sessionId))
                 .method("POST", jsonRequestBody {
                     name("id").value(rawId)
@@ -437,8 +442,9 @@ class AuthApi @Inject constructor(
         }
         return output.toString().toRequestBody(JSON)
     }
-
     private fun parseUserCredentials(body: ResponseBody): List<Credential> {
+//        val bodyStr = body.string()
+//        Log.d("Credentials", bodyStr)
         fun readCredentials(reader: JsonReader): List<Credential> {
             val credentials = mutableListOf<Credential>()
             reader.beginArray()
@@ -463,8 +469,11 @@ class AuthApi @Inject constructor(
         }
         JsonReader(body.byteStream().bufferedReader()).use { reader ->
             reader.beginObject()
+            Log.d("Credentials", "Loading response")
+
             while (reader.hasNext()) {
                 val name = reader.nextName()
+                Log.d("Credentials", name)
                 if (name == "credentials") {
                     return readCredentials(reader)
                 } else {
