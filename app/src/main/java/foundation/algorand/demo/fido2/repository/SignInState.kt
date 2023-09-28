@@ -26,13 +26,13 @@ sealed class SignInState {
      */
     object SignedOut : SignInState()
 
-    /**
-     * The user is signing in. The user has entered the username and is ready to sign in with
-     * password or FIDO2.
-     */
-    data class SigningIn(
-        val username: String
-    ) : SignInState()
+//    /**
+//     * The user is signing in. The user has entered the username and is ready to sign in with
+//     * password or FIDO2.
+//     */
+//    data class SigningIn(
+//        val username: String
+//    ) : SignInState()
 
     /**
      * The user sign-in failed.

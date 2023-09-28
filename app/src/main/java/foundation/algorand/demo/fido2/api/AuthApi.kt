@@ -42,9 +42,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody
-import okio.Buffer
 import ru.gildor.coroutines.okhttp.await
-import java.io.IOException
 import java.io.StringReader
 import java.io.StringWriter
 import javax.inject.Inject
@@ -65,6 +63,11 @@ class AuthApi @Inject constructor(
     }
 
     /**
+     * Create a Session with the FIDO2 API Service
+     *
+     * Currently just represents a public key the application would like to use.
+     * Eventually this should include a challenge to attest against on the server
+     *
      * @param wallet The wallet to be used for sign-in.
      * @return The Session ID.
      */
@@ -78,26 +81,7 @@ class AuthApi @Inject constructor(
                 .build()
         )
         val response = call.await()
-        return response.result("Error calling /username") { }
-    }
-
-    /**
-     * @param sessionId The session ID received on `username()`.
-     * @param password A password.
-     * @return An [ApiResult].
-     */
-    suspend fun password(sessionId: String, password: String): ApiResult<Unit> {
-        val call = client.newCall(
-            Request.Builder()
-                .url("$BASE_URL/password")
-                .addHeader("Cookie", formatCookie(sessionId))
-                .method("POST", jsonRequestBody {
-                    name("password").value(password)
-                })
-                .build()
-        )
-        val response = call.await()
-        return response.result("Error calling /password") { }
+        return response.result("Failed to create Session") { }
     }
 
     /**
@@ -123,10 +107,9 @@ class AuthApi @Inject constructor(
      * @param sessionId The session ID.
      * @return A pair. The `first` element is an [PublicKeyCredentialCreationOptions] that can be
      * used for a subsequent FIDO2 API call. The `second` element is a challenge string that should
-     * be sent back to the server in [registerResponse].
+     * be sent back to the server in [attestationResponse].
      */
-    suspend fun registerRequest(sessionId: String): ApiResult<PublicKeyCredentialCreationOptions> {
-        Log.d("REGISTER", "$BASE_URL/attestation/request")
+    suspend fun attestationRequest(sessionId: String): ApiResult<PublicKeyCredentialCreationOptions> {
         val call = client.newCall(
             Request.Builder()
                 .url("$BASE_URL/attestation/request")
@@ -154,7 +137,7 @@ class AuthApi @Inject constructor(
      * @return A list of all the credentials registered on the server, including the newly
      * registered one.
      */
-    suspend fun registerResponse(
+    suspend fun attestationResponse(
         sessionId: String,
         credential: PublicKeyCredential
     ): ApiResult<List<Credential>> {
@@ -192,7 +175,8 @@ class AuthApi @Inject constructor(
      * @param sessionId The session ID.
      * @param credentialId The credential ID to be removed.
      */
-    suspend fun removeKey(sessionId: String, credentialId: String): ApiResult<Unit> {
+    suspend fun deleteKey(sessionId: String, credentialId: String): ApiResult<Unit> {
+        Log.d(TAG, "Calling /auth/keys with DELETE")
         val call = client.newCall(
             Request.Builder()
                 .url("$BASE_URL/auth/keys/$credentialId")
@@ -201,7 +185,9 @@ class AuthApi @Inject constructor(
                 .build()
         )
         val response = call.await()
-        return response.result("Error calling /removeKey") { }
+        return response.result("Error calling /removeKey") {
+            Log.d(TAG, "Successful /auth/keys with DELETE")
+        }
     }
 
     /**
@@ -211,28 +197,30 @@ class AuthApi @Inject constructor(
      * for a subsequent FIDO2 API call. The `second` element is a challenge string that should
      * be sent back to the server in [signinResponse].
      */
-    suspend fun signinRequest(
-        sessionId: String,
-        credentialId: String?
+    suspend fun assertionRequest(
+        sessionId: String?,
+        credentialId: String
     ): ApiResult<PublicKeyCredentialRequestOptions> {
+        Log.d(TAG, credentialId)
+        val requestBuilder = Request.Builder()
+            .url(
+                buildString {
+                    append("$BASE_URL/assertion/request/$credentialId")
+                }
+            )
+            .method("POST", jsonRequestBody {})
+
+        if(sessionId != null) {
+            requestBuilder.addHeader("Cookie", formatCookie(sessionId))
+        }
+
         val call = client.newCall(
-            Request.Builder()
-                .url(
-                    buildString {
-                        append("$BASE_URL/assertion/request")
-                        if (credentialId != null) {
-                            append("?credId=$credentialId")
-                        }
-                    }
-                )
-                .addHeader("Cookie", formatCookie(sessionId))
-                .method("POST", jsonRequestBody {})
-                .build()
+            requestBuilder.build()
         )
         val response = call.await()
-        return response.result("Error calling /signinRequest") {
+        return response.result("Failed to fetch /assertion/request") {
             parsePublicKeyCredentialRequestOptions(
-                body ?: throw ApiException("Empty response from /signinRequest")
+                body ?: throw ApiException("Empty response")
             )
         }
     }
@@ -243,37 +231,37 @@ class AuthApi @Inject constructor(
      * @return A list of all the credentials registered on the server, including the newly
      * registered one.
      */
-    suspend fun signinResponse(
+    suspend fun assertionResponse(
         sessionId: String,
         credential: PublicKeyCredential
     ): ApiResult<List<Credential>> {
         val rawId = credential.rawId.toBase64()
         val response = credential.response as AuthenticatorAssertionResponse
+        val builder = Request.Builder()
+            .url("$BASE_URL/assertion/response")
+            .addHeader("Cookie", formatCookie(sessionId))
+            .method("POST", jsonRequestBody {
+                name("id").value(rawId)
+                name("type").value(PublicKeyCredentialType.PUBLIC_KEY.toString())
+                name("rawId").value(rawId)
+                name("response").objectValue {
+                    name("clientDataJSON").value(
+                        response.clientDataJSON.toBase64()
+                    )
+                    name("authenticatorData").value(
+                        response.authenticatorData.toBase64()
+                    )
+                    name("signature").value(
+                        response.signature.toBase64()
+                    )
+                    name("userHandle").value(
+                        response.userHandle?.toBase64() ?: ""
+                    )
+                }
+            })
 
         val call = client.newCall(
-            Request.Builder()
-                .url("$BASE_URL/assertion/response")
-                .addHeader("Cookie", formatCookie(sessionId))
-                .method("POST", jsonRequestBody {
-                    name("id").value(rawId)
-                    name("type").value(PublicKeyCredentialType.PUBLIC_KEY.toString())
-                    name("rawId").value(rawId)
-                    name("response").objectValue {
-                        name("clientDataJSON").value(
-                            response.clientDataJSON.toBase64()
-                        )
-                        name("authenticatorData").value(
-                            response.authenticatorData.toBase64()
-                        )
-                        name("signature").value(
-                            response.signature.toBase64()
-                        )
-                        name("userHandle").value(
-                            response.userHandle?.toBase64() ?: ""
-                        )
-                    }
-                })
-                .build()
+            builder.build()
         )
         val apiResponse = call.await()
         return apiResponse.result("Error calling /signingResponse") {

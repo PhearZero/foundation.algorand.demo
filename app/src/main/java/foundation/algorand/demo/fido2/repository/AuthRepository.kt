@@ -23,6 +23,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.algorand.algosdk.account.Account
 import foundation.algorand.demo.fido2.api.ApiException
 import foundation.algorand.demo.fido2.api.ApiResult
 import foundation.algorand.demo.fido2.api.AuthApi
@@ -55,6 +56,8 @@ class AuthRepository @Inject constructor(
         const val TAG = "AuthRepository"
 
         // Keys for SharedPreferences
+        val ALGORAND_PUBLIC_KEY = stringPreferencesKey("public_key")
+        val ALGORAND_PRIVATE_KEY = stringPreferencesKey("private_key")
         val USERNAME = stringPreferencesKey("username")
         val SESSION_ID = stringPreferencesKey("session_id")
         val CREDENTIALS = stringSetPreferencesKey("credentials")
@@ -65,6 +68,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    var account: Account? = null
     private var fido2ApiClient: Fido2ApiClient? = null
 
     fun setFido2APiClient(client: Fido2ApiClient?) {
@@ -75,6 +79,7 @@ class AuthRepository @Inject constructor(
         replay = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
     /** The current [SignInState]. */
     val signInState = signInStateMutable.asSharedFlow()
 
@@ -87,13 +92,28 @@ class AuthRepository @Inject constructor(
 
     init {
         scope.launch {
-            val username = dataStore.read(USERNAME)
-            val sessionId = dataStore.read(SESSION_ID)
-            val initialState = when {
-                username.isNullOrBlank() -> SignInState.SignedOut
-                sessionId.isNullOrBlank() -> SignInState.SigningIn(username)
-                else -> SignInState.SignedIn(username)
+            val username: String?
+            val prvKey = dataStore.read(ALGORAND_PRIVATE_KEY)
+            if (prvKey === null) {
+                val acc = Account()
+                dataStore.edit { prefs ->
+                    prefs[USERNAME] = acc.address.toString()
+                    prefs[ALGORAND_PUBLIC_KEY] = acc.address.toString()
+                    prefs[ALGORAND_PRIVATE_KEY] = acc.toMnemonic()
+                }
+                account = acc
+                username = acc.address.toString()
+                createSession(username)
+            } else {
+                val acc = Account(prvKey)
+                dataStore.edit { prefs ->
+                    prefs[USERNAME] = acc.address.toString()
+                }
+                account = acc
+                username = acc.address.toString()
+                createSession(username)
             }
+            val initialState = SignInState.SignedIn(username)
             signInStateMutable.emit(initialState)
             if (initialState is SignInState.SignedIn) {
                 refreshCredentials()
@@ -105,65 +125,37 @@ class AuthRepository @Inject constructor(
      * Sends the username to the server. If it succeeds, the sign-in state will proceed to
      * [SignInState.SigningIn].
      */
-    suspend fun username(username: String) {
-        when (val result = api.createSession(username)) {
+    suspend fun createSession(wallet: String) {
+        when (val result = api.createSession(wallet)) {
             ApiResult.SignedOutFromServer -> forceSignOut()
             is ApiResult.Success -> {
                 dataStore.edit { prefs ->
-                    prefs[USERNAME] = username
+                    prefs[USERNAME] = wallet
                     prefs[SESSION_ID] = result.sessionId!!
                 }
-                signInStateMutable.emit(SignInState.SignedIn(username))
+                signInStateMutable.emit(SignInState.SignedIn(wallet))
                 refreshCredentials()
             }
         }
     }
 
-    /**
-     * Signs in with a password. This should be called only when the sign-in state is
-     * [SignInState.SigningIn]. If it succeeds, the sign-in state will proceed to
-     * [SignInState.SignedIn].
-     */
-    suspend fun password(password: String) {
-        val username = dataStore.read(USERNAME)!!
-        val sessionId = dataStore.read(SESSION_ID)!!
-        try {
-            when (val result = api.password(sessionId, password)) {
-                ApiResult.SignedOutFromServer -> forceSignOut()
-                is ApiResult.Success -> {
-                    if (result.sessionId != null) {
+    private suspend fun refreshCredentials() {
+        var sessionId = dataStore.read(SESSION_ID)
+        val username = dataStore.read(USERNAME)
+        if (username != null) {
+            if (sessionId === null) {
+                createSession(username)
+                sessionId = dataStore.read(SESSION_ID)
+            }
+            if (sessionId != null) {
+                when (val result = api.getKeys(sessionId)) {
+                    ApiResult.SignedOutFromServer -> forceSignOut()
+                    is ApiResult.Success -> {
                         dataStore.edit { prefs ->
-                            prefs[SESSION_ID] = result.sessionId
+                            result.sessionId?.let { prefs[SESSION_ID] = it }
+                            prefs[CREDENTIALS] = result.data.toStringSet()
                         }
                     }
-                    signInStateMutable.emit(SignInState.SignedIn(username))
-                    refreshCredentials()
-                }
-            }
-        } catch (e: ApiException) {
-            Log.e(TAG, "Invalid login credentials", e)
-
-            // start login over again
-            dataStore.edit { prefs ->
-               prefs.remove(USERNAME)
-               prefs.remove(SESSION_ID)
-               prefs.remove(CREDENTIALS)
-            }
-
-            signInStateMutable.emit(
-                SignInState.SignInError(e.message ?: "Invalid login credentials")
-            )
-        }
-    }
-
-    private suspend fun refreshCredentials() {
-        val sessionId = dataStore.read(SESSION_ID)!!
-        when (val result = api.getKeys(sessionId)) {
-            ApiResult.SignedOutFromServer -> forceSignOut()
-            is ApiResult.Success -> {
-                dataStore.edit { prefs ->
-                    result.sessionId?.let { prefs[SESSION_ID] = it }
-                    prefs[CREDENTIALS] = result.data.toStringSet()
                 }
             }
         }
@@ -184,21 +176,20 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Clears the credentials. The sign-in state will proceed to [SignInState.SigningIn].
+     * Clears the credentials.
      */
     suspend fun clearCredentials() {
         val username = dataStore.read(USERNAME)!!
         dataStore.edit { prefs ->
             prefs.remove(CREDENTIALS)
         }
-        signInStateMutable.emit(SignInState.SigningIn(username))
     }
 
     /**
      * Clears all the sign-in information. The sign-in state will proceed to
      * [SignInState.SignedOut].
      */
-    suspend fun signOut() {
+    suspend fun clear() {
         dataStore.edit { prefs ->
             prefs.remove(USERNAME)
             prefs.remove(SESSION_ID)
@@ -208,6 +199,7 @@ class AuthRepository @Inject constructor(
     }
 
     private suspend fun forceSignOut() {
+        Log.d(TAG, "Forcing Signout")
         dataStore.edit { prefs ->
             prefs.remove(USERNAME)
             prefs.remove(SESSION_ID)
@@ -220,14 +212,18 @@ class AuthRepository @Inject constructor(
      * Starts to register a new credential to the server. This should be called only when the
      * sign-in state is [SignInState.SignedIn].
      */
-    suspend fun registerRequest(): PendingIntent? {
+    suspend fun attestationRequest(): PendingIntent? {
+        Log.d(TAG, "Requesting for PublicKeyCredentialCreationOptions")
         fido2ApiClient?.let { client ->
             try {
                 val sessionId = dataStore.read(SESSION_ID)!!
-                when (val apiResult = api.registerRequest(sessionId)) {
+                Log.d(TAG, sessionId)
+                when (val apiResult = api.attestationRequest(sessionId)) {
                     ApiResult.SignedOutFromServer -> forceSignOut()
                     is ApiResult.Success -> {
+                        Log.d(TAG, "Received Options")
                         if (apiResult.sessionId != null) {
+                            Log.d(TAG, apiResult.sessionId)
                             dataStore.edit { prefs ->
                                 prefs[SESSION_ID] = apiResult.sessionId
                             }
@@ -245,13 +241,13 @@ class AuthRepository @Inject constructor(
 
     /**
      * Finishes registering a new credential to the server. This should only be called after
-     * a call to [registerRequest] and a local FIDO2 API for public key generation.
+     * a call to [attestationRequest] and a local FIDO2 API for public key generation.
      */
-    suspend fun registerResponse(credential: PublicKeyCredential) {
+    suspend fun attestationResponse(credential: PublicKeyCredential) {
         try {
             val sessionId = dataStore.read(SESSION_ID)!!
             val credentialId = credential.rawId.toBase64()
-            when (val result = api.registerResponse(sessionId, credential)) {
+            when (val result = api.attestationResponse(sessionId, credential)) {
                 ApiResult.SignedOutFromServer -> forceSignOut()
                 is ApiResult.Success -> {
                     dataStore.edit { prefs ->
@@ -269,10 +265,10 @@ class AuthRepository @Inject constructor(
     /**
      * Removes a credential registered on the server.
      */
-    suspend fun removeKey(credentialId: String) {
+    suspend fun deleteKey(credentialId: String) {
         try {
             val sessionId = dataStore.read(SESSION_ID)!!
-            when (api.removeKey(sessionId, credentialId)) {
+            when (api.deleteKey(sessionId, credentialId)) {
                 ApiResult.SignedOutFromServer -> forceSignOut()
                 is ApiResult.Success -> refreshCredentials()
             }
@@ -285,13 +281,13 @@ class AuthRepository @Inject constructor(
      * Starts to sign in with a FIDO2 credential. This should only be called when the sign-in state
      * is [SignInState.SigningIn].
      */
-    suspend fun signinRequest(): PendingIntent? {
+    suspend fun assertionRequest(): PendingIntent? {
         fido2ApiClient?.let { client ->
-            val sessionId = dataStore.read(SESSION_ID)!!
+            val sessionId = dataStore.read(SESSION_ID)
             val credentialId = dataStore.read(LOCAL_CREDENTIAL_ID)
             if (credentialId != null) {
-                when (val apiResult = api.signinRequest(sessionId, credentialId)) {
-                    ApiResult.SignedOutFromServer -> forceSignOut()
+                when (val apiResult = api.assertionRequest(sessionId, credentialId)) {
+                    ApiResult.SignedOutFromServer -> Log.d(TAG, "Shutdown")
                     is ApiResult.Success -> {
                         val task = client.getSignPendingIntent(apiResult.data)
                         return task.await()
@@ -304,14 +300,13 @@ class AuthRepository @Inject constructor(
 
     /**
      * Finishes to signing in with a FIDO2 credential. This should only be called after a call to
-     * [signinRequest] and a local FIDO2 API for key assertion.
+     * [assertionRequest] and a local FIDO2 API for key assertion.
      */
-    suspend fun signinResponse(credential: PublicKeyCredential) {
+    suspend fun assertionResponse(credential: PublicKeyCredential) {
         try {
-            val username = dataStore.read(USERNAME)!!
             val sessionId = dataStore.read(SESSION_ID)!!
             val credentialId = credential.rawId.toBase64()
-            when (val result = api.signinResponse(sessionId, credential)) {
+            when (val result = api.assertionResponse(sessionId, credential)) {
                 ApiResult.SignedOutFromServer -> forceSignOut()
                 is ApiResult.Success -> {
                     dataStore.edit { prefs ->
@@ -319,7 +314,7 @@ class AuthRepository @Inject constructor(
                         prefs[CREDENTIALS] = result.data.toStringSet()
                         prefs[LOCAL_CREDENTIAL_ID] = credentialId
                     }
-                    signInStateMutable.emit(SignInState.SignedIn(username))
+                    signInStateMutable.emit(SignInState.SignedIn("TODO"))
                     refreshCredentials()
                 }
             }

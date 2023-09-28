@@ -9,44 +9,39 @@ import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.fido.Fido
 import dagger.hilt.android.AndroidEntryPoint
-//import foundation.algorand.demo.databinding.ActivityMainBinding
 import foundation.algorand.demo.fido2.repository.SignInState
-import foundation.algorand.demo.ui.auth.AuthFragment
-import foundation.algorand.demo.ui.home.HomeFragment
-import foundation.algorand.demo.ui.username.UsernameFragment
+import foundation.algorand.demo.ui.FidoWalletFragment
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.security.Security
 
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
+
+    /**
+     * Update security provider for Algorand SDK
+     */
+    private fun setSecurity(){
+        Security.removeProvider("BC")
+        Security.insertProviderAt(BouncyCastleProvider(), 0)
+    }
+
+    /**
+     * Handle State Changes
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(findViewById(R.id.toolbar))
-        Toast.makeText(this@MainActivity, "loading", Toast.LENGTH_LONG).show()
+        setSecurity()
 
+        // State Transitions
         lifecycleScope.launchWhenStarted {
-            Toast.makeText(this@MainActivity, "Launch on start", Toast.LENGTH_LONG).show()
-            viewModel.signInState.collect { state ->
-                when (state) {
-                    is SignInState.SignedOut -> {
-                        showFragment(UsernameFragment::class.java) { UsernameFragment() }
-                    }
-                    is SignInState.SigningIn -> {
-                        showFragment(AuthFragment::class.java) { AuthFragment() }
-                    }
-                    is SignInState.SignInError -> {
-                        Toast.makeText(this@MainActivity, state.error, Toast.LENGTH_LONG).show()
-                        // return to username prompt
-                        showFragment(UsernameFragment::class.java) { UsernameFragment() }
-                    }
-                    is SignInState.SignedIn -> {
-                        showFragment(HomeFragment::class.java) { HomeFragment() }
-                    }
-                }
-            }
+            showFragment(FidoWalletFragment::class.java) {FidoWalletFragment()}
         }
     }
+
     override fun onResume() {
         super.onResume()
         viewModel.setFido2ApiClient(Fido.getFido2ApiClient(this@MainActivity))
@@ -58,7 +53,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showFragment(clazz: Class<out Fragment>, create: () -> Fragment) {
-        Toast.makeText(this@MainActivity, "show fragment", Toast.LENGTH_LONG).show()
         val manager = supportFragmentManager
         if (!clazz.isInstance(manager.findFragmentById(R.id.container))) {
             manager.commit {

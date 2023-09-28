@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package foundation.algorand.demo.ui.home
+package foundation.algorand.demo.ui
 
 import android.view.LayoutInflater
 import android.view.ViewGroup

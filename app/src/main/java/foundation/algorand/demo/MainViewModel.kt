@@ -27,8 +27,6 @@ class MainViewModel @Inject constructor(
     private val repository: AuthRepository
 ) : ViewModel() {
 
-    val signInState = repository.signInState
-
     fun setFido2ApiClient(client: Fido2ApiClient?) {
         repository.setFido2APiClient(client)
     }

@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "foundation.algorand.demo"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "foundation.algorand.demo"
         minSdk = 21
-        targetSdk = 33
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -55,28 +55,38 @@ android {
 }
 var kotlinVersion: String by rootProject.extra
 dependencies {
+    // AlgoSDK
+    implementation("org.bouncycastle:bcprov-jdk15on:1.67")
+    implementation("com.github.Jesulonimi21:java-algorand-sdk:1.5.0")
+
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 
-    implementation("com.google.android.gms:play-services-fido:20.0.1")
+    // FIDO2 Client
+    implementation("com.google.android.gms:play-services-fido:20.1.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.fragment:fragment-ktx:1.6.0")
 
-    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Barcode Reader
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
     var coroutineVersion by extra { "1.7.1" }
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutineVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutineVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:$coroutineVersion")
 
-    var hiltVersion by extra { "2.47" }
+    var hiltVersion by extra { "2.48" }
     implementation("com.google.dagger:hilt-android:$hiltVersion")
+    implementation("com.google.mlkit:camera:16.0.0-beta3")
+    implementation("androidx.legacy:legacy-support-v4:1.0.0")
     kapt("com.google.dagger:hilt-compiler:$hiltVersion")
     kapt("androidx.hilt:hilt-compiler:1.0.0")
 
-    var lifecycleVersion by extra { "2.6.1" }
+    var lifecycleVersion by extra { "2.6.2" }
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycleVersion")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycleVersion")
