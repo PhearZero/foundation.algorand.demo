@@ -1,1 +1,0 @@
-### See https://github.com/androidthings/sample-bluetooth-le-gattserver
