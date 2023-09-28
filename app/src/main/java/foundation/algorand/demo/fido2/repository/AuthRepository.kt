@@ -115,9 +115,7 @@ class AuthRepository @Inject constructor(
             }
             val initialState = SignInState.SignedIn(username)
             signInStateMutable.emit(initialState)
-            if (initialState is SignInState.SignedIn) {
-                refreshCredentials()
-            }
+            refreshCredentials()
         }
     }
 

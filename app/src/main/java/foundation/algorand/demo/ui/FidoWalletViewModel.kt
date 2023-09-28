@@ -42,33 +42,12 @@ class FidoWalletViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "(user)")
 
     val account = repository.account
-    var publicKey = if (repository.account != null) repository.account!!.address.toString() else "Loading..."
     init {
         // See if we can authenticate using FIDO.
         viewModelScope.launch {
-            publicKey = if (repository.account != null) repository.account!!.address.toString() else "Error"
             val intent = assertionRequest()
             if (intent != null) {
                 authRequestChannel.send(intent)
-            }
-        }
-    }
-
-    /**
-     * Create Session using Algorand Public Key
-     */
-    fun createSession() {
-        val username = repository.account?.address.toString()
-        Log.d("VIEWMODEL", username)
-        if (repository.account != null && username.isNotBlank() ) {
-            Log.d("VIEWMODEL", username)
-            viewModelScope.launch {
-                _processing.value = true
-                try {
-                    repository.createSession(username)
-                } finally {
-                    _processing.value = false
-                }
             }
         }
     }

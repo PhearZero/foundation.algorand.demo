@@ -26,7 +26,7 @@
 
     <!-- Auth -->
     <eat-comment />
-    <string name="wallet">Wallet-PK: %s!</string>
+    <string name="wallet">Wallet: %s!</string>
     <string name="auth_explanation">For the purpose of demonstration, the password you type is ignored.</string>
     <string name="password">Password</string>
     <string name="cancelled">Cancelled</string>

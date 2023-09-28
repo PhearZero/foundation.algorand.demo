@@ -59,7 +59,7 @@ class AuthApi @Inject constructor(
         private const val BASE_URL = BuildConfig.API_BASE_URL
         private val JSON = "application/json".toMediaTypeOrNull()
         private const val SessionIdKey = "connect.sid="
-        private const val TAG = "AuthApi"
+        private const val TAG = "fido2.AuthApi"
     }
 
     /**
@@ -72,16 +72,20 @@ class AuthApi @Inject constructor(
      * @return The Session ID.
      */
     suspend fun createSession(wallet: String): ApiResult<Unit> {
+        val path = "$BASE_URL/auth/session"
+        Log.d(TAG, "Running: createSession($wallet): POST $path")
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/auth/session")
+                .url(path)
                 .method("POST", jsonRequestBody {
                     name("wallet").value(wallet)
                 })
                 .build()
         )
         val response = call.await()
-        return response.result("Failed to create Session") { }
+        return response.result("Error: POST $path") {
+            Log.d(TAG, "Successful: createSession($wallet): POST $path")
+        }
     }
 
     /**
@@ -89,16 +93,16 @@ class AuthApi @Inject constructor(
      * @return A list of all the credentials registered on the server.
      */
     suspend fun getKeys(sessionId: String): ApiResult<List<Credential>> {
-        Log.d("keys", "$BASE_URL/auth/keys")
+        Log.d(TAG, "Running: getKeys($sessionId): GET $BASE_URL/auth/keys")
         val call = client.newCall(
             Request.Builder()
                 .url("$BASE_URL/auth/keys")
                 .addHeader("Cookie", formatCookie(sessionId))
-//                .method("GET", jsonRequestBody {})
                 .build()
         )
         val response = call.await()
-        return response.result("Error calling /getKeys") {
+        return response.result("Error: GET /auth/keys") {
+            Log.d(TAG, "Successful: getKeys($sessionId): GET $BASE_URL/auth/keys")
             parseUserCredentials(body ?: throw ApiException("Empty response from /getKeys"))
         }
     }
@@ -141,6 +145,7 @@ class AuthApi @Inject constructor(
         sessionId: String,
         credential: PublicKeyCredential
     ): ApiResult<List<Credential>> {
+        Log.d(TAG, "")
         val rawId = credential.rawId.toBase64()
         val response = credential.response as AuthenticatorAttestationResponse
 
@@ -176,7 +181,7 @@ class AuthApi @Inject constructor(
      * @param credentialId The credential ID to be removed.
      */
     suspend fun deleteKey(sessionId: String, credentialId: String): ApiResult<Unit> {
-        Log.d(TAG, "Calling /auth/keys with DELETE")
+        Log.d(TAG, "Running: deleteKey() DELETE /auth/keys")
         val call = client.newCall(
             Request.Builder()
                 .url("$BASE_URL/auth/keys/$credentialId")
@@ -201,16 +206,18 @@ class AuthApi @Inject constructor(
         sessionId: String?,
         credentialId: String
     ): ApiResult<PublicKeyCredentialRequestOptions> {
-        Log.d(TAG, credentialId)
+        val path = "$BASE_URL/assertion/request/$credentialId"
+        Log.d(TAG, "Running: assertionRequest($sessionId, $credentialId) POST $path" )
+
         val requestBuilder = Request.Builder()
             .url(
                 buildString {
-                    append("$BASE_URL/assertion/request/$credentialId")
+                    append(path)
                 }
             )
             .method("POST", jsonRequestBody {})
 
-        if(sessionId != null) {
+        if (sessionId != null) {
             requestBuilder.addHeader("Cookie", formatCookie(sessionId))
         }
 
@@ -306,9 +313,11 @@ class AuthApi @Inject constructor(
                     "excludeCredentials" -> builder.setExcludeList(
                         parseCredentialDescriptors(reader)
                     )
+
                     "authenticatorSelection" -> builder.setAuthenticatorSelection(
                         parseSelection(reader)
                     )
+
                     "rp" -> builder.setRp(parseRp(reader))
                     "extensions" -> reader.skipValue() // Unused
                 }
@@ -341,6 +350,7 @@ class AuthApi @Inject constructor(
                 "authenticatorAttachment" -> builder.setAttachment(
                     Attachment.fromString(reader.nextString())
                 )
+
                 "userVerification" -> reader.skipValue()
                 else -> reader.skipValue()
             }
@@ -430,9 +440,8 @@ class AuthApi @Inject constructor(
         }
         return output.toString().toRequestBody(JSON)
     }
+
     private fun parseUserCredentials(body: ResponseBody): List<Credential> {
-//        val bodyStr = body.string()
-//        Log.d("Credentials", bodyStr)
         fun readCredentials(reader: JsonReader): List<Credential> {
             val credentials = mutableListOf<Credential>()
             reader.beginArray()
@@ -457,11 +466,8 @@ class AuthApi @Inject constructor(
         }
         JsonReader(body.byteStream().bufferedReader()).use { reader ->
             reader.beginObject()
-            Log.d("Credentials", "Loading response")
-
             while (reader.hasNext()) {
                 val name = reader.nextName()
-                Log.d("Credentials", name)
                 if (name == "credentials") {
                     return readCredentials(reader)
                 } else {
