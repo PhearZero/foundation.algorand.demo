@@ -1,7 +1,8 @@
 package foundation.algorand.demo
 
 import android.os.Bundle
-import android.widget.Toast
+import android.os.StrictMode
+import android.util.Log
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -9,7 +10,6 @@ import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.fido.Fido
 import dagger.hilt.android.AndroidEntryPoint
-import foundation.algorand.demo.fido2.repository.SignInState
 import foundation.algorand.demo.ui.FidoWalletFragment
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.Security
@@ -23,8 +23,18 @@ class MainActivity : AppCompatActivity() {
      * Update security provider for Algorand SDK
      */
     private fun setSecurity(){
+        val providerName = "BC"
         Security.removeProvider("BC")
         Security.insertProviderAt(BouncyCastleProvider(), 0)
+
+        if (Security.getProvider(providerName) == null)
+        {
+            Log.d("algoDebug",providerName + " provider not installed");
+        }
+        else
+        {
+            Log.d("algoDebug",providerName + " is installed.");
+        }
     }
 
     /**
@@ -32,6 +42,8 @@ class MainActivity : AppCompatActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
+        StrictMode.setThreadPolicy(policy)
         setContentView(R.layout.activity_main)
         setSupportActionBar(findViewById(R.id.toolbar))
         setSecurity()
