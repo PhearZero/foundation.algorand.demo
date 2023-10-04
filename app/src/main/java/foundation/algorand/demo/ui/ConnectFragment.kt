@@ -1,20 +1,17 @@
 package foundation.algorand.demo.ui
 
-import androidx.lifecycle.ViewModelProvider
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.fragment.app.viewModels
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanner
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import dagger.hilt.android.AndroidEntryPoint
 import foundation.algorand.demo.MainActivity
 import foundation.algorand.demo.databinding.FragmentConnectBinding
 import foundation.algorand.demo.R
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ConnectFragment : Fragment() {

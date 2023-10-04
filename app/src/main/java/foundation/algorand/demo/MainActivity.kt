@@ -1,11 +1,9 @@
 package foundation.algorand.demo
 
-import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.StrictMode
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -56,20 +54,14 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(findViewById(R.id.toolbar))
         setSecurity()
 
-        sharedPreferences = getSharedPreferences("base-url", Context.MODE_PRIVATE)
-        if (sharedPreferences.contains(viewModel.originKey)) {
-            viewModel.baseURL = sharedPreferences.getString(viewModel.originKey, "")
-        }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-//                viewModel.uiState.collect {
-                    val url = viewModel.baseURL
-                    if(url === null){
-                        showFragment(ConnectFragment::class.java) {ConnectFragment()}
-                    } else {
-                        showFragment(FidoWalletFragment::class.java) {FidoWalletFragment()}
-                    }
-//                }
+                val url = viewModel.baseURL
+                if(url === null){
+                    showFragment(ConnectFragment::class.java) {ConnectFragment()}
+                } else {
+                    showFragment(FidoWalletFragment::class.java) {FidoWalletFragment()}
+                }
             }
         }
     }
@@ -80,7 +72,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.setFido2ApiClient(Fido.getFido2ApiClient(this@MainActivity))
-//        preferenceManager.sharedPreferences.registerOnSharedPreferenceChangeListener(this)
     }
 
     override fun onPause() {

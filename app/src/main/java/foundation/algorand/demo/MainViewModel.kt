@@ -36,10 +36,7 @@ data class DiceUiState(
 class MainViewModel @Inject constructor(
     private val repository: AuthRepository
 ) : ViewModel() {
-    val originKey = "origin"
     var baseURL: String? = null
-    private val _uiState = MutableStateFlow(false)
-    val uiState: StateFlow<Boolean> = _uiState.asStateFlow()
 
     fun setFido2ApiClient(client: Fido2ApiClient?) {
         repository.setFido2APiClient(client)
