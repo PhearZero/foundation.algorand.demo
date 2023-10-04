@@ -89,35 +89,40 @@ class AuthRepository @Inject constructor(
      */
     val credentials =
         dataStore.data.map { it[CREDENTIALS] ?: emptySet() }.map { parseCredentials(it) }
-
     init {
         scope.launch {
             val username: String?
             val prvKey = dataStore.read(ALGORAND_PRIVATE_KEY)
+            // No Wallet Found
             if (prvKey === null) {
                 val acc = Account()
+                // WARNING: This is not safe for production!
                 dataStore.edit { prefs ->
                     prefs[USERNAME] = acc.address.toString()
                     prefs[ALGORAND_PUBLIC_KEY] = acc.address.toString()
                     prefs[ALGORAND_PRIVATE_KEY] = acc.toMnemonic()
                 }
+                Log.d(TAG,  acc.toMnemonic())
+                Log.d(TAG,  acc.address.toString())
                 account = acc
                 username = acc.address.toString()
                 createSession(username)
-            } else {
+            }
+            // Create new Wallet
+            else {
                 val acc = Account(prvKey)
                 dataStore.edit { prefs ->
                     prefs[USERNAME] = acc.address.toString()
                 }
                 account = acc
+                Log.d(TAG,  acc.toMnemonic())
+                Log.d(TAG,  acc.address.toString())
                 username = acc.address.toString()
                 createSession(username)
             }
             val initialState = SignInState.SignedIn(username)
             signInStateMutable.emit(initialState)
-            if (initialState is SignInState.SignedIn) {
-                refreshCredentials()
-            }
+            refreshCredentials()
         }
     }
 
@@ -209,8 +214,7 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Starts to register a new credential to the server. This should be called only when the
-     * sign-in state is [SignInState.SignedIn].
+     * Starts to register a new credential to the server.
      */
     suspend fun attestationRequest(): PendingIntent? {
         Log.d(TAG, "Requesting for PublicKeyCredentialCreationOptions")
