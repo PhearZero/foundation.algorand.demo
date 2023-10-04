@@ -17,15 +17,29 @@
 package foundation.algorand.demo
 
 import androidx.lifecycle.ViewModel
-import foundation.algorand.demo.fido2.repository.AuthRepository
 import com.google.android.gms.fido.fido2.Fido2ApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import foundation.algorand.demo.fido2.repository.AuthRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import javax.inject.Inject
+import kotlin.random.Random
 
+data class DiceUiState(
+    val firstDieValue: Int? = null,
+    val secondDieValue: Int? = null,
+    val numberOfRolls: Int = 0,
+)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repository: AuthRepository
 ) : ViewModel() {
+    val originKey = "origin"
+    var baseURL: String? = null
+    private val _uiState = MutableStateFlow(false)
+    val uiState: StateFlow<Boolean> = _uiState.asStateFlow()
 
     fun setFido2ApiClient(client: Fido2ApiClient?) {
         repository.setFido2APiClient(client)

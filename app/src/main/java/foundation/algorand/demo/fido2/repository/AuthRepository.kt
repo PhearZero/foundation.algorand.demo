@@ -95,7 +95,8 @@ class AuthRepository @Inject constructor(
             val prvKey = dataStore.read(ALGORAND_PRIVATE_KEY)
             // No Wallet Found
             if (prvKey === null) {
-                val acc = Account()
+                // TODO: go back to random generated and dispense with algokit api
+                val acc = Account("industry kangaroo visa history swarm exotic doctor fade strike honey ride bicycle pistol large eager solution midnight loan give list company behave purpose abstract good")
                 // WARNING: This is not safe for production!
                 dataStore.edit { prefs ->
                     prefs[USERNAME] = acc.address.toString()
