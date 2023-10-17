@@ -126,7 +126,17 @@ class AuthRepository @Inject constructor(
             refreshCredentials()
         }
     }
+    suspend fun connectResponse(requestId: String){
+        when (api.connectResponse(requestId)){
+            is ApiResult.Success -> {
+                Log.d(TAG, "HELLO MOTO")
+            }
 
+            else -> {
+                Log.d(TAG, "ERROR")
+            }
+        }
+    }
     /**
      * Sends the username to the server. If it succeeds, the sign-in state will proceed to
      * [SignInState.SigningIn].

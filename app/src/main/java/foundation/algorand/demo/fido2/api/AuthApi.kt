@@ -62,6 +62,24 @@ class AuthApi @Inject constructor(
         private const val TAG = "fido2.AuthApi"
     }
 
+    suspend fun connectResponse(requestId: String): ApiResult<Unit> {
+        val path = "$BASE_URL/connect/response"
+        Log.d(TAG, "Running: connectResponse($requestId): POST $path")
+        val call = client.newCall(
+            Request.Builder()
+                .url(path)
+                .method("POS", jsonRequestBody {
+                    name("requestId").value(requestId)
+                })
+                .build()
+        )
+
+        val response = call.await()
+        return response.result("Error: POST $path") {
+            Log.d(TAG, "Successful: connectResponse($requestId): POST $path")
+        }
+    }
+
     /**
      * Create a Session with the FIDO2 API Service
      *
