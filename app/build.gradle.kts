@@ -18,12 +18,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-        buildConfigField("String", "API_BASE_URL", "\"https://nest-fido2.vercel.app\"")
-        resValue("string", "host", "https://nest-fido2.vercel.app")
+        buildConfigField("String", "API_BASE_URL", "\"https://nest-fido2.onrender.com\"")
+        resValue("string", "host", "https://nest-fido2.onrender.com")
         resValue(
             "string", "asset_statements", """
            [{
-             "include": "https://nest-fido2.vercel.app/.well-known/assetlinks.json"
+             "include": "https://nest-fido2.onrender.com/.well-known/assetlinks.json"
            }]
         """)
     }

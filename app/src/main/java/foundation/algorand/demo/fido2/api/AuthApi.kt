@@ -62,21 +62,23 @@ class AuthApi @Inject constructor(
         private const val TAG = "fido2.AuthApi"
     }
 
-    suspend fun connectResponse(requestId: String): ApiResult<Unit> {
+    suspend fun connectResponse(requestId: Double, wallet: String): ApiResult<Unit> {
         val path = "$BASE_URL/connect/response"
-        Log.d(TAG, "Running: connectResponse($requestId): POST $path")
+        Log.d(TAG, "Running: connectResponse($requestId, $wallet): POST $path")
         val call = client.newCall(
             Request.Builder()
                 .url(path)
-                .method("POS", jsonRequestBody {
+                .method("POST", jsonRequestBody {
                     name("requestId").value(requestId)
+                    name("wallet").value(wallet)
                 })
                 .build()
         )
 
         val response = call.await()
-        return response.result("Error: POST $path") {
-            Log.d(TAG, "Successful: connectResponse($requestId): POST $path")
+        return response.result("Error: POST $path RequestID: $requestId" ) {
+//            Log.d(TAG, "Successful: connectResponse($requestId): POST $path")
+            body ?: throw ApiException("Empty response from /registerResponse")
         }
     }
 
@@ -508,6 +510,7 @@ class AuthApi @Inject constructor(
 
     private fun parseError(body: ResponseBody): String {
         val errorString = body.string()
+        Log.d(TAG, errorString)
         try {
             JsonReader(StringReader(errorString)).use { reader ->
                 reader.beginObject()

@@ -126,10 +126,10 @@ class AuthRepository @Inject constructor(
             refreshCredentials()
         }
     }
-    suspend fun connectResponse(requestId: String){
-        when (api.connectResponse(requestId)){
+    suspend fun connectResponse(requestId: Double){
+        when (api.connectResponse(requestId,"IKMUKRWTOEJMMJD4MUAQWWB4C473DEHXLCYHJ4R3RZWZKPNE7E2ZTQ7VD4")){
             is ApiResult.Success -> {
-                Log.d(TAG, "HELLO MOTO")
+                Log.d(TAG, "Connect Auth Repository Success")
             }
 
             else -> {

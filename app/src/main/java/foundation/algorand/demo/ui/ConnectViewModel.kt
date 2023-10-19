@@ -16,12 +16,12 @@ class ConnectViewModel @Inject constructor(
         private const val TAG = "ConnectViewModel"
     }
 
-   suspend fun connectResponse(requestId: String){
+   suspend fun connectResponse(requestId: Double){
        viewModelScope.launch {
            try {
                repository.connectResponse(requestId)
            } finally {
-               Log.d(TAG, "Hello Moto")
+               Log.d(TAG, "Connect Response Finished")
            }
        }
    }
