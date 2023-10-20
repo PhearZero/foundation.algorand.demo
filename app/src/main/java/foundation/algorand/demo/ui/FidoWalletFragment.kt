@@ -14,30 +14,19 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.algorand.algosdk.account.Account
-import com.algorand.algosdk.builder.transaction.PaymentTransactionBuilder
-import com.algorand.algosdk.crypto.Address
-import com.algorand.algosdk.transaction.SignedTransaction
-import com.algorand.algosdk.transaction.Transaction
-import com.algorand.algosdk.util.Encoder
 import com.algorand.algosdk.v2.client.common.AlgodClient
-import com.algorand.algosdk.v2.client.common.Response
-import com.algorand.algosdk.v2.client.model.PendingTransactionResponse
 import com.google.android.gms.fido.Fido
 import com.google.android.gms.fido.fido2.api.common.AuthenticatorErrorResponse
 import com.google.android.gms.fido.fido2.api.common.PublicKeyCredential
-import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanner
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import dagger.hilt.android.AndroidEntryPoint
+import foundation.algorand.demo.MainActivity
 import foundation.algorand.demo.R
 import foundation.algorand.demo.databinding.FragmentFidoWalletBinding
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import org.json.JSONObject
-
 
 @AndroidEntryPoint
 class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
@@ -55,23 +44,17 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
         ::handleAttestation
     )
 
-    /**
-     * Asserting existing Credentials
-     */
-    private val assertionIntentLauncher = registerForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
-        ::handleAssertion
-    )
+
 
     companion object {
-        private const val TAG = "FidoWalletFragment"
+        private const val TAG = "fido2.WalletFragment"
         private const val FRAGMENT_DELETE_CONFIRMATION = "delete_confirmation"
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         // Barcode Scanner
         scanner = GmsBarcodeScanning.getClient(requireContext())
 
@@ -94,13 +77,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
         }
         binding.credentials.adapter = credentialAdapter
 
-        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-            // Launch credential check
-            launch {
-                viewModel.authRequests.collect { intent ->
-                    assertionIntentLauncher.launch(IntentSenderRequest.Builder(intent).build())
-                }
-            }
+       lifecycleScope.launch {
             // Load Stored Credentials
             viewModel.credentials.collect { credentials ->
                 credentialAdapter.submitList(credentials)
@@ -120,7 +97,8 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
 
     override fun onDeleteConfirmed(credentialId: String) {
         Log.d(TAG, "Delete Confirmed")
-        viewModel.deleteKey(credentialId)
+        val origin = (activity as MainActivity).viewModel.baseURL!!
+        viewModel.deleteKey(credentialId, origin)
     }
 
     /**
@@ -137,8 +115,9 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
      * Handle FAB Create Credential Clicks
      */
     private fun handleCreateCredentialClick() {
+        val origin = (activity as MainActivity).viewModel.baseURL!!
         scope.launch {
-            val intent = viewModel.attestationRequest()
+            val intent = viewModel.attestationRequest(origin)
             if (intent != null) {
                 attestationIntentLauncher.launch(
                     IntentSenderRequest.Builder(intent).build()
@@ -165,16 +144,16 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
             .addOnSuccessListener { barcode ->
                 var txnId: String?
 
-                scope.launch {
+                lifecycleScope.launch {
                     Toast.makeText(
                         requireContext(),
                         "Sending Transaction",
                         Toast.LENGTH_LONG
                     )
                         .show()
-                    val txn = parseBarcodeTransaction(barcode);
-                    txnId = sendTransaction(txn)
-
+                    val txn = viewModel.parseBarcodeTransaction(barcode)
+                    txnId = viewModel.sendTransaction(txn)
+                    Log.w(TAG, "Transaction sent with ID: $txnId")
                     Toast.makeText(
                         requireContext(),
                         "Transaction Sent",
@@ -182,19 +161,6 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
                     ).show()
 
                 }
-//                scope.launch {
-//                    Log.d("algoDebug", "Successfully sent tx with ID: $id")
-//
-//                    // Wait for transaction confirmation
-//
-//                    txnId?.let { waitForConfirmation(it) }
-//                    // Read the transaction
-//                    val pTrx = client!!.PendingTransactionInformation(txnId).execute().body()
-//                    Log.d("algoDebug", "Transaction information (with notes): $pTrx")
-//
-//
-//                }
-
             }
             .addOnCanceledListener {
                 Toast.makeText(requireContext(), R.string.cancelled, Toast.LENGTH_LONG).show()
@@ -203,78 +169,6 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
                 Toast.makeText(requireContext(), e.message, Toast.LENGTH_LONG).show()
             }
     }
-
-    // TODO: move to View Model
-    @Throws(Exception::class)
-    fun waitForConfirmation(txID: String) {
-        var lastRound = client!!.GetStatus().execute().body().lastRound
-        while (true) {
-            try {
-                // Check the pending tranactions
-                val pendingInfo: Response<PendingTransactionResponse> =
-                    client!!.PendingTransactionInformation(txID).execute()
-                if (pendingInfo.body().confirmedRound != null && pendingInfo.body().confirmedRound > 0) {
-                    // Got the completed Transaction
-                    Toast.makeText(
-                        requireContext(),
-                        "Transaction " + txID + " confirmed in round " + pendingInfo.body().confirmedRound,
-                        Toast.LENGTH_LONG
-                    ).show()
-                    break
-                }
-                lastRound = lastRound!! + 1
-                client!!.WaitForBlock(lastRound).execute()
-            } catch (e: Exception) {
-                throw e
-            }
-        }
-    }
-
-    //TODO: move to viewmodel
-    fun sendTransaction(txn: PaymentTransactionBuilder<*>): String? {
-        try {
-            //TODO: Fetch Keys from Repository
-            //IKMUKRWTOEJMMJD4MUAQWWB4C473DEHXLCYHJ4R3RZWZKPNE7E2ZTQ7VD4
-            val acc =
-                Account("industry kangaroo visa history swarm exotic doctor fade strike honey ride bicycle pistol large eager solution midnight loan give list company behave purpose abstract good")
-
-            val params = client?.TransactionParams()?.execute()?.body()
-            // Sign the transaction
-            val signedTxn: SignedTransaction =
-                acc.signTransaction(txn.suggestedParams(params).build())
-            Log.d("algoDebug", "Signed transaction with txid: " + signedTxn.transactionID)
-
-            // Submit the transaction to the network
-            val encodedTxBytes: ByteArray = Encoder.encodeToMsgPack(signedTxn)
-            Log.d(TAG, encodedTxBytes.toString())
-            val id = client?.RawTransaction()?.rawtxn(encodedTxBytes)?.execute()?.body()?.txId
-            val idStr = id.toString()
-            return idStr
-        } catch (e: java.lang.Exception) {
-            Log.e("algoDebug", "Exception when calling algod#transactionInformation: " + e.message)
-            return null
-        }
-    }
-
-    // TODO: move to viewModel
-    private fun parseBarcodeTransaction(barcode: Barcode): PaymentTransactionBuilder<*> {
-        val jObject = JSONObject(barcode.displayValue.toString())
-        // TODO: Parse transaction properties
-        val amount = Integer.parseInt(jObject.get("amount").toString())
-        val sender = Address(jObject.get("from").toString())
-        val receiver = Address(jObject.get("to").toString())
-        val note = "FIDO2 Local Wallet Transfer"
-        // TODO: Handle all transaction types
-        val type = "pay"
-
-        // TODO: Use Generic Transaction Builder
-        return Transaction.PaymentTransactionBuilder()
-            .sender(sender)
-            .receiver(receiver)
-            .amount(amount)
-            .note(note.toByteArray())
-    }
-
 
     /**
      * Creates a new Credential and submits it to the API
@@ -291,44 +185,19 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
                     .show()
 
             else -> {
-                Log.d(TAG, bytes.toString())
                 val credential = PublicKeyCredential.deserializeFromBytes(bytes)
                 val response = credential.response
                 if (response is AuthenticatorErrorResponse) {
                     Toast.makeText(requireContext(), response.errorMessage, Toast.LENGTH_LONG)
                         .show()
                 } else {
-                    viewModel.attestationResponse(credential)
+                    val origin = (activity as MainActivity).viewModel.baseURL!!
+                    viewModel.attestationResponse(credential, origin)
                     binding.fab.setImageResource(R.drawable.baseline_qr_code_scanner_24)
                 }
             }
         }
     }
 
-    /**
-     * Assert an existing credential
-     */
-    private fun handleAssertion(activityResult: ActivityResult) {
-        Log.d(TAG, "Handle Assertion")
-        val bytes = activityResult.data?.getByteArrayExtra(Fido.FIDO2_KEY_CREDENTIAL_EXTRA)
-        when {
-            activityResult.resultCode != Activity.RESULT_OK ->
-                Toast.makeText(requireContext(), R.string.cancelled, Toast.LENGTH_LONG).show()
 
-            bytes == null ->
-                Toast.makeText(requireContext(), R.string.auth_error, Toast.LENGTH_LONG).show()
-
-            else -> {
-                val credential = PublicKeyCredential.deserializeFromBytes(bytes)
-                val response = credential.response
-                if (response is AuthenticatorErrorResponse) {
-                    Toast.makeText(requireContext(), response.errorMessage, Toast.LENGTH_LONG)
-                        .show()
-                } else {
-                    // Assert the credential with the API, this registers the Credential in the Database
-                    viewModel.assertionResponse(credential)
-                }
-            }
-        }
-    }
 }

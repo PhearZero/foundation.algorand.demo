@@ -62,8 +62,9 @@ class AuthApi @Inject constructor(
         private const val TAG = "fido2.AuthApi"
     }
 
-    suspend fun connectResponse(requestId: Double, wallet: String): ApiResult<Unit> {
-        val path = "$BASE_URL/connect/response"
+    suspend fun connectResponse(requestId: Double, wallet: String, origin: String?): ApiResult<Unit> {
+        val base = getOrigin(origin)
+        val path = "$base/connect/response"
         Log.d(TAG, "Running: connectResponse($requestId, $wallet): POST $path")
         val call = client.newCall(
             Request.Builder()
@@ -77,8 +78,8 @@ class AuthApi @Inject constructor(
 
         val response = call.await()
         return response.result("Error: POST $path RequestID: $requestId" ) {
-//            Log.d(TAG, "Successful: connectResponse($requestId): POST $path")
-            body ?: throw ApiException("Empty response from /registerResponse")
+            Log.d(TAG, "Successful: /connect/response($requestId): POST $path")
+            body ?: throw ApiException("Empty response from $path")
         }
     }
 
@@ -91,8 +92,9 @@ class AuthApi @Inject constructor(
      * @param wallet The wallet to be used for sign-in.
      * @return The Session ID.
      */
-    suspend fun createSession(wallet: String): ApiResult<Unit> {
-        val path = "$BASE_URL/auth/session"
+    suspend fun createSession(wallet: String, origin: String?): ApiResult<Unit> {
+        val base = getOrigin(origin)
+        val path = "$base/auth/session"
         Log.d(TAG, "Running: createSession($wallet): POST $path")
         val call = client.newCall(
             Request.Builder()
@@ -112,17 +114,19 @@ class AuthApi @Inject constructor(
      * @param sessionId The session ID.
      * @return A list of all the credentials registered on the server.
      */
-    suspend fun getKeys(sessionId: String): ApiResult<List<Credential>> {
-        Log.d(TAG, "Running: getKeys($sessionId): GET $BASE_URL/auth/keys")
+    suspend fun getKeys(sessionId: String, origin: String): ApiResult<List<Credential>> {
+        val base = getOrigin(origin)
+        val path = "$base/auth/keys"
+        Log.d(TAG, "Running: getKeys($sessionId): GET $path")
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/auth/keys")
+                .url(path)
                 .addHeader("Cookie", formatCookie(sessionId))
                 .build()
         )
         val response = call.await()
-        return response.result("Error: GET /auth/keys") {
-            Log.d(TAG, "Successful: getKeys($sessionId): GET $BASE_URL/auth/keys")
+        return response.result("Error: GET $path") {
+            Log.d(TAG, "Successful: getKeys($sessionId): GET $path")
             parseUserCredentials(body ?: throw ApiException("Empty response from /getKeys"))
         }
     }
@@ -133,10 +137,12 @@ class AuthApi @Inject constructor(
      * used for a subsequent FIDO2 API call. The `second` element is a challenge string that should
      * be sent back to the server in [attestationResponse].
      */
-    suspend fun attestationRequest(sessionId: String): ApiResult<PublicKeyCredentialCreationOptions> {
+    suspend fun attestationRequest(sessionId: String, origin: String?): ApiResult<PublicKeyCredentialCreationOptions> {
+        val base = getOrigin(origin)
+        val path = "$base/attestation/request"
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/attestation/request")
+                .url(path)
                 .addHeader("Cookie", formatCookie(sessionId))
                 .method("POST", jsonRequestBody {
                     name("attestation").value("none")
@@ -148,9 +154,9 @@ class AuthApi @Inject constructor(
                 .build()
         )
         val response = call.await()
-        return response.result("Error calling /registerRequest") {
+        return response.result("Error calling POST $path") {
             parsePublicKeyCredentialCreationOptions(
-                body ?: throw ApiException("Empty response from /registerRequest")
+                body ?: throw ApiException("Empty response from POST $path")
             )
         }
     }
@@ -163,15 +169,19 @@ class AuthApi @Inject constructor(
      */
     suspend fun attestationResponse(
         sessionId: String,
-        credential: PublicKeyCredential
+        credential: PublicKeyCredential,
+        origin: String,
     ): ApiResult<List<Credential>> {
-        Log.d(TAG, "")
+        val base = getOrigin(origin)
+        val path = "$base/attestation/response"
+        Log.d(TAG, "attestationResponse($sessionId, $credential, $origin)")
+
         val rawId = credential.rawId.toBase64()
         val response = credential.response as AuthenticatorAttestationResponse
 
         val call = client.newCall(
             Request.Builder()
-                .url("$BASE_URL/attestation/response")
+                .url(path)
                 .addHeader("Cookie", formatCookie(sessionId))
                 .method("POST", jsonRequestBody {
                     name("id").value(rawId)
@@ -189,9 +199,9 @@ class AuthApi @Inject constructor(
                 .build()
         )
         val apiResponse = call.await()
-        return apiResponse.result("Error calling /registerResponse") {
+        return apiResponse.result("Error calling /attestation/response") {
             parseUserCredentials(
-                body ?: throw ApiException("Empty response from /registerResponse")
+                body ?: throw ApiException("Empty response from /attestation/response")
             )
         }
     }
@@ -210,7 +220,7 @@ class AuthApi @Inject constructor(
                 .build()
         )
         val response = call.await()
-        return response.result("Error calling /removeKey") {
+        return response.result("Error calling DELETE /auth/keys") {
             Log.d(TAG, "Successful /auth/keys with DELETE")
         }
     }
@@ -220,7 +230,7 @@ class AuthApi @Inject constructor(
      * @param credentialId The credential ID of this device.
      * @return A pair. The `first` element is a [PublicKeyCredentialRequestOptions] that can be used
      * for a subsequent FIDO2 API call. The `second` element is a challenge string that should
-     * be sent back to the server in [signinResponse].
+     * be sent back to the server in [assertionResponse].
      */
     suspend fun assertionRequest(
         sessionId: String?,
@@ -238,7 +248,10 @@ class AuthApi @Inject constructor(
             .method("POST", jsonRequestBody {})
 
         if (sessionId != null) {
+            Log.d(TAG, "Running session")
             requestBuilder.addHeader("Cookie", formatCookie(sessionId))
+        } else {
+            Log.w(TAG, "No session found")
         }
 
         val call = client.newCall(
@@ -291,7 +304,7 @@ class AuthApi @Inject constructor(
             builder.build()
         )
         val apiResponse = call.await()
-        return apiResponse.result("Error calling /signingResponse") {
+        return apiResponse.result("Error calling /assertion/response") {
             parseUserCredentials(body ?: throw ApiException("Empty response from /signinResponse"))
         }
     }
@@ -566,5 +579,8 @@ class AuthApi @Inject constructor(
 
     private fun formatCookie(sessionId: String): String {
         return "$SessionIdKey$sessionId"
+    }
+    private fun getOrigin(origin: String?): String {
+        return if(origin === null) BASE_URL else origin
     }
 }

@@ -53,7 +53,7 @@ class AuthRepository @Inject constructor(
 ) {
 
     private companion object {
-        const val TAG = "AuthRepository"
+        const val TAG = "fido2.AuthRepository"
 
         // Keys for SharedPreferences
         val ALGORAND_PUBLIC_KEY = stringPreferencesKey("public_key")
@@ -74,7 +74,10 @@ class AuthRepository @Inject constructor(
     fun setFido2APiClient(client: Fido2ApiClient?) {
         fido2ApiClient = client
     }
-
+    private val walletStateMutable = MutableSharedFlow<WalletState>(
+        replay = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     private val signInStateMutable = MutableSharedFlow<SignInState>(
         replay = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -90,6 +93,7 @@ class AuthRepository @Inject constructor(
     val credentials =
         dataStore.data.map { it[CREDENTIALS] ?: emptySet() }.map { parseCredentials(it) }
     init {
+        Log.d(TAG, "init")
         scope.launch {
             val username: String?
             val prvKey = dataStore.read(ALGORAND_PRIVATE_KEY)
@@ -107,7 +111,7 @@ class AuthRepository @Inject constructor(
                 Log.d(TAG,  acc.address.toString())
                 account = acc
                 username = acc.address.toString()
-                createSession(username)
+//                createSession(username)
             }
             // Create new Wallet
             else {
@@ -116,33 +120,43 @@ class AuthRepository @Inject constructor(
                     prefs[USERNAME] = acc.address.toString()
                 }
                 account = acc
-                Log.d(TAG,  acc.toMnemonic())
-                Log.d(TAG,  acc.address.toString())
+                val mnemonic = acc.toMnemonic()
                 username = acc.address.toString()
-                createSession(username)
+//
+                Log.w(TAG,  mnemonic)
+                Log.w(TAG,  username)
+                //createSession(username)
             }
             val initialState = SignInState.SignedIn(username)
+            val initialWalletState = WalletState.Wallet(account!!.address.toString())
+            walletStateMutable.emit(initialWalletState)
             signInStateMutable.emit(initialState)
-            refreshCredentials()
+//            refreshCredentials()
         }
     }
-    suspend fun connectResponse(requestId: Double){
-        when (api.connectResponse(requestId,"IKMUKRWTOEJMMJD4MUAQWWB4C473DEHXLCYHJ4R3RZWZKPNE7E2ZTQ7VD4")){
+    suspend fun connectResponse(requestId: Double, origin: String?){
+        val address = account!!.address.toString()
+        Log.d(TAG, "connectResponse($requestId) with Wallet: $address")
+        when (val result = api.connectResponse(requestId, address, origin)){
             is ApiResult.Success -> {
+                dataStore.edit { prefs ->
+                    prefs[USERNAME] = address
+                    prefs[SESSION_ID] = result.sessionId!!
+                }
                 Log.d(TAG, "Connect Auth Repository Success")
+                signInStateMutable.emit(SignInState.SignedIn(address))
             }
-
             else -> {
                 Log.d(TAG, "ERROR")
             }
         }
     }
     /**
-     * Sends the username to the server. If it succeeds, the sign-in state will proceed to
-     * [SignInState.SigningIn].
+     * Create session testing endpoint
      */
-    suspend fun createSession(wallet: String) {
-        when (val result = api.createSession(wallet)) {
+    private suspend fun createSession(wallet: String, origin: String) {
+        Log.d(TAG, "createSession($wallet)")
+        when (val result = api.createSession(wallet, origin)) {
             ApiResult.SignedOutFromServer -> forceSignOut()
             is ApiResult.Success -> {
                 dataStore.edit { prefs ->
@@ -150,21 +164,23 @@ class AuthRepository @Inject constructor(
                     prefs[SESSION_ID] = result.sessionId!!
                 }
                 signInStateMutable.emit(SignInState.SignedIn(wallet))
-                refreshCredentials()
+                walletStateMutable.emit(WalletState.WalletWithOrigin(wallet, origin))
+                refreshCredentials(origin)
             }
         }
     }
 
-    private suspend fun refreshCredentials() {
+    private suspend fun refreshCredentials(origin: String) {
         var sessionId = dataStore.read(SESSION_ID)
         val username = dataStore.read(USERNAME)
+        Log.d(TAG, "refreshCredentials SessionId: $sessionId Wallet: $username")
         if (username != null) {
             if (sessionId === null) {
-                createSession(username)
+                createSession(username, origin)
                 sessionId = dataStore.read(SESSION_ID)
             }
             if (sessionId != null) {
-                when (val result = api.getKeys(sessionId)) {
+                when (val result = api.getKeys(sessionId, origin)) {
                     ApiResult.SignedOutFromServer -> forceSignOut()
                     is ApiResult.Success -> {
                         dataStore.edit { prefs ->
@@ -189,16 +205,6 @@ class AuthRepository @Inject constructor(
             index to Credential(id, publicKey)
         }.sortedBy { (index, _) -> index }
             .map { (_, credential) -> credential }
-    }
-
-    /**
-     * Clears the credentials.
-     */
-    suspend fun clearCredentials() {
-        val username = dataStore.read(USERNAME)!!
-        dataStore.edit { prefs ->
-            prefs.remove(CREDENTIALS)
-        }
     }
 
     /**
@@ -227,13 +233,13 @@ class AuthRepository @Inject constructor(
     /**
      * Starts to register a new credential to the server.
      */
-    suspend fun attestationRequest(): PendingIntent? {
-        Log.d(TAG, "Requesting for PublicKeyCredentialCreationOptions")
+    suspend fun attestationRequest(origin: String): PendingIntent? {
+        Log.d(TAG, "attestationRequest($origin)")
         fido2ApiClient?.let { client ->
             try {
                 val sessionId = dataStore.read(SESSION_ID)!!
                 Log.d(TAG, sessionId)
-                when (val apiResult = api.attestationRequest(sessionId)) {
+                when (val apiResult = api.attestationRequest(sessionId, origin)) {
                     ApiResult.SignedOutFromServer -> forceSignOut()
                     is ApiResult.Success -> {
                         Log.d(TAG, "Received Options")
@@ -258,11 +264,12 @@ class AuthRepository @Inject constructor(
      * Finishes registering a new credential to the server. This should only be called after
      * a call to [attestationRequest] and a local FIDO2 API for public key generation.
      */
-    suspend fun attestationResponse(credential: PublicKeyCredential) {
+    suspend fun attestationResponse(credential: PublicKeyCredential, origin: String) {
+        Log.d(TAG, "attestationResponse($credential, $origin)")
         try {
             val sessionId = dataStore.read(SESSION_ID)!!
             val credentialId = credential.rawId.toBase64()
-            when (val result = api.attestationResponse(sessionId, credential)) {
+            when (val result = api.attestationResponse(sessionId, credential, origin)) {
                 ApiResult.SignedOutFromServer -> forceSignOut()
                 is ApiResult.Success -> {
                     dataStore.edit { prefs ->
@@ -280,12 +287,12 @@ class AuthRepository @Inject constructor(
     /**
      * Removes a credential registered on the server.
      */
-    suspend fun deleteKey(credentialId: String) {
+    suspend fun deleteKey(credentialId: String, origin: String) {
         try {
             val sessionId = dataStore.read(SESSION_ID)!!
             when (api.deleteKey(sessionId, credentialId)) {
                 ApiResult.SignedOutFromServer -> forceSignOut()
-                is ApiResult.Success -> refreshCredentials()
+                is ApiResult.Success -> refreshCredentials(origin)
             }
         } catch (e: ApiException) {
             Log.e(TAG, "Cannot call removeKey", e)
@@ -293,14 +300,15 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Starts to sign in with a FIDO2 credential. This should only be called when the sign-in state
-     * is [SignInState.SigningIn].
+     * Starts to sign in with a FIDO2 credential. This should only be called when the sign-in state.
      */
     suspend fun assertionRequest(): PendingIntent? {
+        Log.d(TAG, "Running assertion request")
         fido2ApiClient?.let { client ->
-            val sessionId = dataStore.read(SESSION_ID)
+            val sessionId = dataStore.read(SESSION_ID)!!
             val credentialId = dataStore.read(LOCAL_CREDENTIAL_ID)
             if (credentialId != null) {
+                Log.d(TAG, "CredentialId: $credentialId")
                 when (val apiResult = api.assertionRequest(sessionId, credentialId)) {
                     ApiResult.SignedOutFromServer -> Log.d(TAG, "Shutdown")
                     is ApiResult.Success -> {
@@ -308,6 +316,8 @@ class AuthRepository @Inject constructor(
                         return task.await()
                     }
                 }
+            } else {
+                Log.w(TAG, "No credential found!")
             }
         }
         return null
@@ -317,7 +327,7 @@ class AuthRepository @Inject constructor(
      * Finishes to signing in with a FIDO2 credential. This should only be called after a call to
      * [assertionRequest] and a local FIDO2 API for key assertion.
      */
-    suspend fun assertionResponse(credential: PublicKeyCredential) {
+    suspend fun assertionResponse(credential: PublicKeyCredential, origin: String) {
         try {
             val sessionId = dataStore.read(SESSION_ID)!!
             val credentialId = credential.rawId.toBase64()
@@ -330,7 +340,7 @@ class AuthRepository @Inject constructor(
                         prefs[LOCAL_CREDENTIAL_ID] = credentialId
                     }
                     signInStateMutable.emit(SignInState.SignedIn("TODO"))
-                    refreshCredentials()
+                    refreshCredentials(origin)
                 }
             }
         } catch (e: ApiException) {
