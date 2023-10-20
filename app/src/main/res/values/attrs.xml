@@ -1,0 +1,8 @@
+
+<resources>
+    <attr name="colorAlograndYellow" format="color" />
+    <attr name="colorOnAlograndYellow" format="color" />
+    <attr name="colorAlograndYellowContainer" format="color" />
+    <attr name="colorOnAlograndYellowContainer" format="color" />
+    <attr name="harmonizeAlograndYellow" format="boolean" />
+</resources>
