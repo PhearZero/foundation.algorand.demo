@@ -134,10 +134,10 @@ class AuthRepository @Inject constructor(
 //            refreshCredentials()
         }
     }
-    suspend fun connectResponse(requestId: Double, origin: String?){
+    suspend fun connectResponse(requestId: Double, challenge: String, signature: String, origin: String? ){
         val address = account!!.address.toString()
         Log.d(TAG, "connectResponse($requestId) with Wallet: $address")
-        when (val result = api.connectResponse(requestId, address, origin)){
+        when (val result = api.connectResponse(requestId, address, challenge, signature, origin)){
             is ApiResult.Success -> {
                 dataStore.edit { prefs ->
                     prefs[USERNAME] = address

@@ -100,8 +100,9 @@ class ConnectFragment : Fragment() {
         val jObject = JSONObject(barcode.displayValue.toString())
         val origin = jObject.get("origin").toString()
         val requestId = jObject.get("requestId").toString().toDouble()
+        val challenge = jObject.get("challenge").toString()
         lifecycleScope.launch {
-            viewModel.connectResponse(requestId, origin)
+            viewModel.connectResponse(requestId, challenge, origin)
             (activity as MainActivity).updateBaseURL(origin)
         }
     }
