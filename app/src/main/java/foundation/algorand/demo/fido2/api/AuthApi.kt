@@ -62,7 +62,7 @@ class AuthApi @Inject constructor(
         private const val TAG = "fido2.AuthApi"
     }
 
-    suspend fun connectResponse(requestId: Double, wallet: String, origin: String?): ApiResult<Unit> {
+    suspend fun connectResponse(requestId: Double, wallet: String, challenge: String, signature: String, origin: String?): ApiResult<Unit> {
         val base = getOrigin(origin)
         val path = "$base/connect/response"
         Log.d(TAG, "Running: connectResponse($requestId, $wallet): POST $path")
@@ -72,6 +72,8 @@ class AuthApi @Inject constructor(
                 .method("POST", jsonRequestBody {
                     name("requestId").value(requestId)
                     name("wallet").value(wallet)
+                    name("challenge").value(challenge)
+                    name("signature").value(signature)
                 })
                 .build()
         )
