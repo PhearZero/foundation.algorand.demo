@@ -7,6 +7,7 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -45,8 +46,12 @@ class ConnectFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        viewModel.getKeyPair(this)
         binding = FragmentConnectBinding.inflate(inflater, container, false)
-
+        val textView: TextView = binding.wallet
+        viewModel.wallet.observe(viewLifecycleOwner) {
+            textView.text = it
+        }
         // Barcode Scanner
         scanner = GmsBarcodeScanning.getClient(requireContext())
         binding.fab.setOnClickListener { handleBarCodeScannerClick() }
@@ -101,8 +106,9 @@ class ConnectFragment : Fragment() {
         val origin = jObject.get("origin").toString()
         val requestId = jObject.get("requestId").toString().toDouble()
         val challenge = jObject.get("challenge").toString()
+        val fragment = this
         lifecycleScope.launch {
-            viewModel.connectResponse(requestId, challenge, origin)
+            viewModel.connectResponse(fragment, requestId, challenge, origin)
             (activity as MainActivity).updateBaseURL(origin)
         }
     }

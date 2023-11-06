@@ -10,18 +10,34 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/content"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            app:layout_constrainedHeight="true"
+            app:layout_constraintBottom_toTopOf="@id/app_bar">
+
             <TextView
                 android:id="@+id/welcome"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="@dimen/spacing_medium"
                 android:gravity="center"
-                android:text="Connect to Web Service by scanning the Connect QR Code"
+                android:text="Click QR button to connect to dApp"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
-                app:layout_constraintEnd_toEndOf="parent"
+
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
+                tools:text="Welcome, John!" />
+
+            <TextView
+                android:id="@+id/wallet"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/spacing_medium"
+                android:gravity="center"
+                android:text="Loading Wallet"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
+                android:textIsSelectable="true"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/welcome"
                 tools:text="Welcome, John!" />
         </androidx.constraintlayout.widget.ConstraintLayout>
         <com.google.android.material.bottomappbar.BottomAppBar

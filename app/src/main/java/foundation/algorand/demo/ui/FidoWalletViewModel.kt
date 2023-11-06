@@ -2,6 +2,9 @@ package foundation.algorand.demo.ui
 
 import android.app.PendingIntent
 import android.util.Log
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.algorand.algosdk.account.Account
@@ -22,17 +25,23 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.donations.direct.crypto.CryptoRepository
 import org.json.JSONObject
+import java.security.KeyPair
 import javax.inject.Inject
 
 @HiltViewModel
 class FidoWalletViewModel @Inject constructor(
     private val repository: AuthRepository
 ) : ViewModel() {
+    private val cryptoRepository = CryptoRepository()
     companion object {
         private const val TAG = "fido2.WalletViewModel"
     }
-
+    private val _wallet = MutableLiveData<String>().apply {
+        value = ""
+    }
+    val wallet: LiveData<String> = _wallet
     private var client: AlgodClient? = null
 
 
@@ -63,6 +72,9 @@ class FidoWalletViewModel @Inject constructor(
             port, token
         )
 
+    }
+    fun getKeyPair(fragment: Fragment) {
+        _wallet.value = Account(cryptoRepository.getKeyPair(fragment)).address.toString()
     }
     /**
      * Delete Credential Key

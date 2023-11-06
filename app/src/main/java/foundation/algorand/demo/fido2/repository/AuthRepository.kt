@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import org.donations.direct.crypto.CryptoRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -51,7 +52,7 @@ class AuthRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
     scope: CoroutineScope
 ) {
-
+    private val cryptoRepository = CryptoRepository()
     private companion object {
         const val TAG = "fido2.AuthRepository"
 
@@ -134,8 +135,7 @@ class AuthRepository @Inject constructor(
 //            refreshCredentials()
         }
     }
-    suspend fun connectResponse(requestId: Double, challenge: String, signature: String, origin: String? ){
-        val address = account!!.address.toString()
+    suspend fun connectResponse(requestId: Double, challenge: String, signature: String, address: String, origin: String? ){
         Log.d(TAG, "connectResponse($requestId) with Wallet: $address")
         when (val result = api.connectResponse(requestId, address, challenge, signature, origin)){
             is ApiResult.Success -> {

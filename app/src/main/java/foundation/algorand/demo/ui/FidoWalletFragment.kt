@@ -55,6 +55,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        viewModel.getKeyPair(this)
         // Barcode Scanner
         scanner = GmsBarcodeScanning.getClient(requireContext())
 
