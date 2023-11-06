@@ -3,6 +3,7 @@ package foundation.algorand.demo
 import android.os.Bundle
 import android.os.StrictMode
 import android.util.Log
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -49,11 +50,12 @@ class MainActivity : AppCompatActivity() {
         setContentView( R.layout.activity_main)
         setSupportActionBar(findViewById(R.id.toolbar))
         setSecurity()
-        render()
+        viewModel.origin.observe(this) {
+            render(it)
+        }
     }
-    private fun render(){
-        val url = viewModel.baseURL
-        if(url === null){
+    private fun render(url: String){
+        if(url.toString() === ""){
             showFragment(ConnectFragment::class.java) {ConnectFragment()}
         } else {
             showFragment(FidoWalletFragment::class.java) {FidoWalletFragment()}
@@ -61,19 +63,19 @@ class MainActivity : AppCompatActivity() {
     }
     fun updateBaseURL(url: String){
         Log.d(TAG, "updateBaseURL($url)")
-        viewModel.baseURL = url
-        render()
+        viewModel.setOrigin(url)
     }
     override fun onResume() {
         Log.d(TAG, "onResume()")
         super.onResume()
         viewModel.setFido2ApiClient(Fido.getFido2ApiClient(this@MainActivity))
-        render()
+        render("")
     }
 
     override fun onPause() {
         Log.d(TAG, "onPause()")
         super.onPause()
+        viewModel.setOrigin("")
         viewModel.setFido2ApiClient(null)
     }
 
