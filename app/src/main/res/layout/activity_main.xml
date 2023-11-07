@@ -20,7 +20,7 @@
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
         android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
-        tools:targetApi="21">
+        >
 
         <TextView
             android:id="@+id/host"
@@ -28,7 +28,6 @@
             android:layout_height="match_parent"
             android:layout_gravity="end"
             android:gravity="center_vertical"
-            android:text="@{viewModel.origin}"
             android:textAppearance="?attr/textAppearanceSubtitle2"
             android:textColor="@android:color/white" />
 
