@@ -63,7 +63,7 @@ class ConnectFragment : Fragment() {
         super.onResume()
         // See if we can authenticate using FIDO.
         lifecycleScope.launch {
-            val origin = (activity as MainActivity).viewModel.origin.toString()
+            val origin = (activity as MainActivity).viewModel.origin.value.toString()
             if(origin !== ""){
                 val intent = viewModel.assertionRequest(origin)
                 if (intent != null) {

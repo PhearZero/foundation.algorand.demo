@@ -98,7 +98,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
 
     override fun onDeleteConfirmed(credentialId: String) {
         Log.d(TAG, "Delete Confirmed")
-        val origin = (activity as MainActivity).viewModel.origin.toString()
+        val origin = (activity as MainActivity).viewModel.origin.value.toString()
         viewModel.deleteKey(credentialId, origin)
     }
 
@@ -116,7 +116,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
      * Handle FAB Create Credential Clicks
      */
     private fun handleCreateCredentialClick() {
-        val origin = (activity as MainActivity).viewModel.origin.toString()
+        val origin = (activity as MainActivity).viewModel.origin.value.toString()
         scope.launch {
             val intent = viewModel.attestationRequest(origin)
             if (intent != null) {
@@ -141,6 +141,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
      * Handle FAB Barcode Scanner Clicks
      */
     private fun handleBarCodeScannerClick() {
+        val fragment = this
         scanner.startScan()
             .addOnSuccessListener { barcode ->
                 var txnId: String?
@@ -153,7 +154,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
                     )
                         .show()
                     val txn = viewModel.parseBarcodeTransaction(barcode)
-                    txnId = viewModel.sendTransaction(txn)
+                    txnId = viewModel.sendTransaction(fragment, txn)
                     Log.w(TAG, "Transaction sent with ID: $txnId")
                     Toast.makeText(
                         requireContext(),
@@ -192,7 +193,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
                     Toast.makeText(requireContext(), response.errorMessage, Toast.LENGTH_LONG)
                         .show()
                 } else {
-                    val origin = (activity as MainActivity).viewModel.origin.toString()
+                    val origin = (activity as MainActivity).viewModel.origin.value.toString()
                     viewModel.attestationResponse(credential, origin)
                     binding.fab.setImageResource(R.drawable.baseline_qr_code_scanner_24)
                 }

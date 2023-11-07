@@ -129,12 +129,10 @@ class FidoWalletViewModel @Inject constructor(
             .amount(amount)
             .note(note.toByteArray())
     }
-    fun sendTransaction(txn: PaymentTransactionBuilder<*>): String? {
+    fun sendTransaction(fragment: Fragment, txn: PaymentTransactionBuilder<*>): String? {
         try {
-            //TODO: Fetch Keys from Repository
-            //IKMUKRWTOEJMMJD4MUAQWWB4C473DEHXLCYHJ4R3RZWZKPNE7E2ZTQ7VD4
             val acc =
-                Account("industry kangaroo visa history swarm exotic doctor fade strike honey ride bicycle pistol large eager solution midnight loan give list company behave purpose abstract good")
+                Account(cryptoRepository.getKeyPair(fragment))
 
             val params = client?.TransactionParams()?.execute()?.body()
             // Sign the transaction

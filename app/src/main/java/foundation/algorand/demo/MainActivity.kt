@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import com.google.android.gms.fido.Fido
 import dagger.hilt.android.AndroidEntryPoint
+import foundation.algorand.demo.databinding.ActivityMainBinding
 import foundation.algorand.demo.ui.ConnectFragment
 import foundation.algorand.demo.ui.FidoWalletFragment
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -18,6 +19,7 @@ import java.security.Security
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     val viewModel: MainViewModel by viewModels()
+    private lateinit var binding: ActivityMainBinding
     companion object {
         private const val TAG = "fido2.MainActivity"
     }
@@ -47,7 +49,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
-        setContentView( R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         setSupportActionBar(findViewById(R.id.toolbar))
         setSecurity()
         viewModel.origin.observe(this) {
@@ -55,7 +58,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun render(url: String){
-        if(url.toString() === ""){
+        binding.host.text = url
+        if(url === ""){
             showFragment(ConnectFragment::class.java) {ConnectFragment()}
         } else {
             showFragment(FidoWalletFragment::class.java) {FidoWalletFragment()}
@@ -69,13 +73,11 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "onResume()")
         super.onResume()
         viewModel.setFido2ApiClient(Fido.getFido2ApiClient(this@MainActivity))
-        render("")
     }
 
     override fun onPause() {
         Log.d(TAG, "onPause()")
         super.onPause()
-        viewModel.setOrigin("")
         viewModel.setFido2ApiClient(null)
     }
 
