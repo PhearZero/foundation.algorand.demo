@@ -63,8 +63,8 @@ class ConnectFragment : Fragment() {
         super.onResume()
         // See if we can authenticate using FIDO.
         lifecycleScope.launch {
-            val origin = (activity as MainActivity).viewModel.baseURL
-            if(origin !== null){
+            val origin = (activity as MainActivity).viewModel.origin.toString()
+            if(origin !== ""){
                 val intent = viewModel.assertionRequest(origin)
                 if (intent != null) {
                     Log.d(TAG, "Assertion request has intent")
@@ -133,7 +133,7 @@ class ConnectFragment : Fragment() {
                     Toast.makeText(requireContext(), response.errorMessage, Toast.LENGTH_LONG)
                         .show()
                 } else {
-                    val origin = (activity as MainActivity).viewModel.baseURL!!
+                    val origin = (activity as MainActivity).viewModel.origin.toString()
                     // Assert the credential with the API, this registers the Credential in the Database
                     viewModel.assertionResponse(credential, origin)
                 }

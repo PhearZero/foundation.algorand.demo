@@ -28,7 +28,7 @@
             android:layout_height="match_parent"
             android:layout_gravity="end"
             android:gravity="center_vertical"
-            android:text="@{viewModel.baseURL}"
+            android:text="@{viewModel.origin}"
             android:textAppearance="?attr/textAppearanceSubtitle2"
             android:textColor="@android:color/white" />
 

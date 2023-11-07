@@ -98,7 +98,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
 
     override fun onDeleteConfirmed(credentialId: String) {
         Log.d(TAG, "Delete Confirmed")
-        val origin = (activity as MainActivity).viewModel.baseURL!!
+        val origin = (activity as MainActivity).viewModel.origin.toString()
         viewModel.deleteKey(credentialId, origin)
     }
 
@@ -116,7 +116,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
      * Handle FAB Create Credential Clicks
      */
     private fun handleCreateCredentialClick() {
-        val origin = (activity as MainActivity).viewModel.baseURL!!
+        val origin = (activity as MainActivity).viewModel.origin.toString()
         scope.launch {
             val intent = viewModel.attestationRequest(origin)
             if (intent != null) {
@@ -192,7 +192,7 @@ class FidoWalletFragment : Fragment(), DeleteConfirmationFragment.Listener {
                     Toast.makeText(requireContext(), response.errorMessage, Toast.LENGTH_LONG)
                         .show()
                 } else {
-                    val origin = (activity as MainActivity).viewModel.baseURL!!
+                    val origin = (activity as MainActivity).viewModel.origin.toString()
                     viewModel.attestationResponse(credential, origin)
                     binding.fab.setImageResource(R.drawable.baseline_qr_code_scanner_24)
                 }
