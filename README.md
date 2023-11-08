@@ -1,10 +1,13 @@
 # Algorand FIDO Wallet Demo
+> ⚠️ This is an experimental application to discover FIDO2/WebAuthn capabilities ⚠️
 
-Discovery repository for using FIDO with Algorand specific wallets.
+## Problems
 
-- [ ] Deep Links for Mobile<->Mobile
-- [ ] BLE GATT Authenticator for Mobile<->Web (https://fidoalliance.org/specs/fido-u2f-v1.2-ps-20170411/fido-u2f-bt-protocol-v1.2-ps-20170411.html#gatt-service-description)
-- [ ] Allow USB Key for attestation on phone (https://github.com/LedgerHQ/ledger-live/blob/4a57e0b8b9eb14d25eec4d570d89b94272ee04fb/libs/ledgerjs/packages/react-native-hid/android/src/main/java/com/ledgerwallet/hid/HIDDevice.java#L21)
+- Message passing ([ARC-?]() | WalletConnect)
+- Proof of Knowledge of wallet private keys ([ARC-31](), [ARC-00014]())
+- Authentication of users devices (FIDO2/WebAuthn)
 
-### See https://github.com/Trojan295/android-webauthn-token
-### See https://github.com/androidthings/sample-bluetooth-le-gattserver
+## Overview
+Based on the [codelab-fido2](https://github.com/android/codelab-fido2/tree/master) repository. See
+[Architecture](ARCHITECTURE.md), [Sequence](SEQUENCE.md), and [Decisions](decisions/README.md) for more information.
+
